@@ -272,6 +272,34 @@ async function saveQuizSession(result, routeSessionId, scoreFields = {}) {
 }
 
 
+function ScoreCircle({ pct }) {
+  const [animPct, setAnimPct] = useState(0);
+  useEffect(() => {
+    const t = setTimeout(() => setAnimPct(pct), 80);
+    return () => clearTimeout(t);
+  }, [pct]);
+  const r = 52;
+  const circ = 2 * Math.PI * r;
+  const color = pct >= 75 ? 'var(--ssc-success)' : pct >= 50 ? 'var(--ssc-teal)' : pct >= 30 ? 'var(--ssc-warning)' : 'var(--ssc-danger)';
+  const dash = circ - (animPct / 100) * circ;
+  return (
+    <div style={{ position: 'relative', width: 124, height: 124, flexShrink: 0 }}>
+      <svg width="124" height="124" viewBox="0 0 124 124">
+        <circle cx="62" cy="62" r={r} fill="none" stroke="var(--ssc-border-soft)" strokeWidth="10"/>
+        <circle cx="62" cy="62" r={r} fill="none" stroke={color} strokeWidth="10"
+          strokeDasharray={circ} strokeDashoffset={dash}
+          strokeLinecap="round" transform="rotate(-90 62 62)"
+          style={{ transition: 'stroke-dashoffset 0.8s ease-out' }}
+        />
+      </svg>
+      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
+        <span style={{ fontFamily: 'Nunito, sans-serif', fontWeight: 900, fontSize: 26, color, lineHeight: 1 }}>{Math.round(pct)}%</span>
+        <span style={{ fontSize: 10, color: 'var(--ssc-text-muted)', fontWeight: 600, marginTop: 2, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Score</span>
+      </div>
+    </div>
+  );
+}
+
 export default function Result() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -732,7 +760,51 @@ export default function Result() {
         .btn-pulse { animation: btnPulse 2.2s ease-in-out infinite; }
       `}</style>
 
-      <div style={{ maxWidth: 430, margin: '0 auto', padding: '24px 16px 0', display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* ── STICKY HEADER ── */}
+      <div style={{ position: 'sticky', top: 0, zIndex: 30, background: 'var(--ssc-surface)', borderBottom: '1px solid var(--ssc-border-soft)', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 2px 8px rgba(16,32,51,0.06)' }}>
+        <button
+          onClick={() => router.push('/dashboard')}
+          style={{ width: 36, height: 36, borderRadius: '50%', border: '1px solid var(--ssc-border-soft)', background: 'var(--ssc-surface-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+          aria-label="Back to Dashboard"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ssc-text-primary)" strokeWidth="2.5" strokeLinecap="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+        </button>
+        <h1 className="font-display" style={{ fontSize: 17, fontWeight: 800, color: 'var(--ssc-text-primary)', margin: 0 }}>Quiz Result</h1>
+        <button
+          onClick={handleShareWhatsApp}
+          style={{ width: 36, height: 36, borderRadius: '50%', border: '1px solid var(--ssc-border-soft)', background: 'var(--ssc-surface-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+          aria-label="Share result"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ssc-text-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+          </svg>
+        </button>
+      </div>
+
+      <div style={{ maxWidth: 430, margin: '0 auto', padding: '16px 16px 0', display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+        {/* ── HERO ── */}
+        {(() => {
+          const acc = result.accuracy ?? 0;
+          const firstName = (status === 'authenticated' ? session?.user?.name : null)?.split(' ')[0] || null;
+          let heroTitle;
+          if (acc >= 85) heroTitle = firstName ? `Excellent, ${firstName}!` : 'Excellent Work!';
+          else if (acc >= 65) heroTitle = firstName ? `Strong Score, ${firstName}!` : 'Strong Score!';
+          else if (acc >= 45) heroTitle = firstName ? `Good Effort, ${firstName}!` : 'Good Effort!';
+          else heroTitle = firstName ? `Keep Going, ${firstName}!` : 'Keep Going!';
+          return (
+            <div style={{ textAlign: 'center', padding: '12px 8px 0' }}>
+              <div style={{ fontSize: 52, lineHeight: 1, marginBottom: 8 }}>
+                {acc >= 75 ? '🏆' : acc >= 50 ? '⭐' : '💪'}
+              </div>
+              <h2 className="font-display" style={{ fontSize: 22, fontWeight: 900, color: 'var(--ssc-text-primary)', margin: '0 0 4px' }}>
+                {heroTitle} 🎉
+              </h2>
+              <p style={{ fontSize: 13, color: 'var(--ssc-text-secondary)', margin: 0 }}>You completed the quiz</p>
+            </div>
+          );
+        })()}
 
         {/* ── 1. RESULT SUMMARY CARD ── */}
         {(() => {
@@ -765,33 +837,28 @@ export default function Result() {
             : `${getDisplaySubject(result.subject, result.collection) || 'Quiz'} Result`;
 
           return (
-            <div className="card-in" style={{ background: 'var(--ssc-surface)', border: '1px solid var(--ssc-border-soft)', borderRadius: 28, padding: '18px 20px', boxShadow: 'var(--ssc-shadow-card)' }}>
-              <p className="t-stat-label" style={{ color: 'var(--ssc-text-secondary)', marginBottom: 8, textAlign: 'center' }}>
-                {cardLabel}
-              </p>
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6 }}>
-                <span className="t-button-sm" style={{ background: statusBg, border: `1px solid ${statusBorder}`, color: statusColor, borderRadius: 999, padding: '4px 16px' }}>
-                  {statusLabel}
-                </span>
-              </div>
-              {/* Score + Accuracy tiles */}
-              <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                <div style={{ flex: 1, background: 'var(--ssc-surface-soft)', border: '1px solid var(--ssc-border-soft)', borderRadius: 16, padding: '12px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                  <span className="t-stat-lg font-display" style={{ color: scoreColor }}>{score}</span>
-                  <span className="t-stat-label" style={{ color: 'var(--ssc-text-secondary)' }}>Score</span>
-                </div>
-                <div style={{ flex: 1, background: 'var(--ssc-surface-soft)', border: '1px solid var(--ssc-border-soft)', borderRadius: 16, padding: '12px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                  <span className="t-stat-lg font-display" style={{ color: 'var(--ssc-teal)' }}>{Math.round(acc)}%</span>
-                  <span className="t-stat-label" style={{ color: 'var(--ssc-text-secondary)' }}>Accuracy</span>
+            <div className="card-in" style={{ background: 'var(--ssc-surface)', border: '1px solid var(--ssc-border-soft)', borderRadius: 28, padding: '20px', boxShadow: 'var(--ssc-shadow-card)' }}>
+              {/* Score circle + fraction + status */}
+              <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 18 }}>
+                <ScoreCircle pct={acc} />
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--ssc-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 4px' }}>Your Score</p>
+                  <p className="font-display" style={{ fontSize: 30, fontWeight: 900, color: 'var(--ssc-text-primary)', lineHeight: 1, margin: '0 0 10px' }}>
+                    {result.correct} <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--ssc-text-muted)' }}>/ {result.totalQuestions || 0}</span>
+                  </p>
+                  <span style={{ background: statusBg, border: `1px solid ${statusBorder}`, color: statusColor, borderRadius: 999, padding: '4px 14px', fontSize: 12, fontWeight: 700 }}>
+                    {statusLabel}
+                  </span>
                 </div>
               </div>
 
-              {/* Correct / Wrong / Skipped */}
-              <div style={{ display: 'flex', justifyContent: 'space-around', paddingTop: 10, paddingBottom: 10, borderTop: '1px solid var(--ssc-border-soft)', borderBottom: '1px solid var(--ssc-border-soft)', marginBottom: 16 }}>
+              {/* Correct / Wrong / Skipped / Answered */}
+              <div style={{ display: 'flex', justifyContent: 'space-around', paddingTop: 12, paddingBottom: 12, borderTop: '1px solid var(--ssc-border-soft)', borderBottom: '1px solid var(--ssc-border-soft)', marginBottom: 16 }}>
                 {[
-                  { val: result.correct,   label: 'Correct', color: 'var(--ssc-success)' },
-                  { val: result.incorrect, label: 'Wrong',   color: 'var(--ssc-danger)' },
-                  { val: result.skipped,   label: 'Skipped', color: 'var(--ssc-text-muted)' },
+                  { val: result.correct,   label: 'Correct',  color: 'var(--ssc-success)' },
+                  { val: result.incorrect, label: 'Wrong',    color: 'var(--ssc-danger)' },
+                  { val: result.skipped,   label: 'Skipped',  color: 'var(--ssc-text-muted)' },
+                  { val: answeredCount,    label: 'Answered', color: 'var(--ssc-teal)' },
                 ].map(({ val, label, color: c }) => (
                   <div key={label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
                     <span className="t-stat-sm font-display" style={{ color: c }}>{val}</span>
@@ -800,46 +867,54 @@ export default function Result() {
                 ))}
               </div>
 
-              {/* CTAs */}
-              <p className="t-badge" style={{ textAlign: 'center', color: 'var(--ssc-text-secondary)', marginBottom: 10 }}>
-                You answered {answeredCount} of {result.totalQuestions || 0} questions
-              </p>
-              <button
-                className="btn-pulse t-button-lg"
-                onClick={() => { setLoadingDetailed(true); setTimeout(() => router.push('/result/detailed'), 100); }}
-                style={{
-                  width: '100%', height: 52, borderRadius: 16, cursor: 'pointer',
-                  background: 'linear-gradient(135deg, var(--ssc-orange), var(--ssc-orange-deep))',
-                  color: '#FFFFFF', border: 'none',
-                  marginBottom: 10,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  transform: 'translateY(0)', transition: 'transform 140ms ease, box-shadow 140ms ease',
-                  fontFamily: 'Nunito, sans-serif',
-                }}
-                onPointerEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 16px 32px rgba(174,80,15,0.45)'; }}
-                onPointerDown={e => { e.currentTarget.style.transform = 'scale(0.98)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(174,80,15,0.15)'; }}
-                onPointerUp={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = ''; }}
-                onPointerLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = ''; }}
-              >
-                {loadingDetailed ? 'Loading…' : 'Review Mistakes →'}
-              </button>
-
-              <button
-                onClick={handleContinue}
-                className="t-button-sm"
-                style={{
-                  width: '100%', height: 46, borderRadius: 14, cursor: 'pointer',
-                  background: 'var(--ssc-surface-soft)', color: 'var(--ssc-text-primary)',
-                  border: '1px solid var(--ssc-border-soft)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  transform: 'scale(1)', transition: 'transform 140ms ease, background 140ms ease',
-                }}
-                onPointerDown={e => { e.currentTarget.style.transform = 'scale(0.98)'; e.currentTarget.style.background = 'var(--ssc-teal-soft)'; }}
-                onPointerUp={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.background = 'var(--ssc-surface-soft)'; }}
-                onPointerLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.background = 'var(--ssc-surface-soft)'; }}
-              >
-                Practice Again
-              </button>
+              {/* Side-by-side CTAs */}
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  onClick={() => { setLoadingDetailed(true); setTimeout(() => router.push('/result/detailed'), 100); }}
+                  className="t-button-sm"
+                  style={{
+                    flex: 1, height: 50, borderRadius: 14, cursor: 'pointer',
+                    background: 'var(--ssc-teal-soft)', color: 'var(--ssc-teal)',
+                    border: '1px solid rgba(14,165,164,0.28)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    transform: 'scale(1)', transition: 'transform 140ms ease, background 140ms ease',
+                    fontFamily: 'Nunito, sans-serif',
+                  }}
+                  onPointerDown={e => { e.currentTarget.style.transform = 'scale(0.97)'; e.currentTarget.style.background = 'rgba(14,165,164,0.18)'; }}
+                  onPointerUp={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.background = 'var(--ssc-teal-soft)'; }}
+                  onPointerLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.background = 'var(--ssc-teal-soft)'; }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                    <line x1="16" y1="13" x2="8" y2="13"/>
+                    <line x1="16" y1="17" x2="8" y2="17"/>
+                  </svg>
+                  {loadingDetailed ? 'Loading...' : 'Review Mistakes'}
+                </button>
+                <button
+                  className="btn-pulse t-button-sm"
+                  onClick={handleContinue}
+                  style={{
+                    flex: 1, height: 50, borderRadius: 14, cursor: 'pointer',
+                    background: 'linear-gradient(135deg, var(--ssc-orange), var(--ssc-orange-deep))',
+                    color: '#FFFFFF', border: 'none',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    transform: 'translateY(0)', transition: 'transform 140ms ease, box-shadow 140ms ease',
+                    fontFamily: 'Nunito, sans-serif',
+                  }}
+                  onPointerEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 14px 28px rgba(174,80,15,0.40)'; }}
+                  onPointerDown={e => { e.currentTarget.style.transform = 'scale(0.97)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(174,80,15,0.15)'; }}
+                  onPointerUp={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = ''; }}
+                  onPointerLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = ''; }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="23 4 23 10 17 10"/>
+                    <path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/>
+                  </svg>
+                  Practice Again
+                </button>
+              </div>
             </div>
           );
         })()}
@@ -889,16 +964,27 @@ export default function Result() {
           </div>
         )}
         {coinsResult && (
-          <div className="coins-strip-in" style={{ background: 'linear-gradient(135deg, var(--ssc-success-soft), #fffaf0)', border: '1px solid rgba(18,184,134,0.20)', borderRadius: 20, padding: 16, borderLeft: '4px solid var(--ssc-success)', boxShadow: 'var(--ssc-shadow-card)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-              <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--ssc-text-primary)' }}>+{coinsResult.coins ?? 0} coins</span>
-              {coinsResult.streakCount > 0 && (
-                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ssc-streak)' }}>🔥 {coinsResult.streakCount} day streak</span>
-              )}
+          <div className="coins-strip-in" style={{ background: 'var(--ssc-surface)', border: '1px solid rgba(246,179,49,0.30)', borderRadius: 20, padding: '16px 18px', boxShadow: 'var(--ssc-shadow-card)', display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{ width: 44, height: 44, borderRadius: 14, background: 'rgba(246,179,49,0.14)', border: '1px solid rgba(246,179,49,0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <span style={{ fontSize: 22 }}>🪙</span>
             </div>
-            <p style={{ fontSize: 12, color: 'var(--ssc-text-secondary)' }}>
-              Level: {coinsResult.level} · {coinsResult.totalCoins ?? 0} coins total
-            </p>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--ssc-text-primary)', margin: '0 0 2px' }}>+{coinsResult.coins ?? 0} Coins Earned</p>
+              <p style={{ fontSize: 12, color: 'var(--ssc-text-secondary)', margin: 0 }}>Current Balance: {coinsResult.totalCoins ?? 0} Coins</p>
+            </div>
+            <span style={{ fontSize: 26, flexShrink: 0 }}>🪙</span>
+          </div>
+        )}
+        {coinsResult?.streakCount > 0 && (
+          <div className="coins-strip-in" style={{ background: 'var(--ssc-surface)', border: '1px solid rgba(245,158,11,0.22)', borderRadius: 20, padding: '14px 18px', boxShadow: 'var(--ssc-shadow-card)', display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--ssc-warning-soft)', border: '1px solid rgba(245,158,11,0.22)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <span style={{ fontSize: 20 }}>🔥</span>
+            </div>
+            <div style={{ flex: 1 }}>
+              <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--ssc-text-primary)', margin: '0 0 2px' }}>{coinsResult.streakCount} Day Streak</p>
+              <p style={{ fontSize: 12, color: 'var(--ssc-text-secondary)', margin: 0 }}>Keep it up! Your streak is active.</p>
+            </div>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ssc-text-muted)" strokeWidth="2" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
           </div>
         )}
 
