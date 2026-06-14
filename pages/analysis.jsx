@@ -84,7 +84,6 @@ const SUBJECTS = [
 ];
 
 // Default-selected subject = the WEAKEST (lowest accuracy) in sample data.
-// Product decision: the weakest creates urgency; the strongest creates complacency.
 const WEAKEST_SUBJECT = SUBJECTS.reduce((min, s) => (s.acc < min.acc ? s : min), SUBJECTS[0]).name;
 
 // ── Topic data (STATIC SAMPLE) ───────────────────────────────────────────
@@ -111,6 +110,20 @@ const TAG_COLOR = {
   'Weak Topics':        { color: 'var(--ssc-danger)', bg: 'var(--ssc-danger-soft)'  },
   'Strong Topics':      { color: 'var(--ssc-success)', bg: 'var(--ssc-success-soft)' },
   'High SSC Weightage': { color: 'var(--ssc-rank)', bg: 'var(--ssc-info-soft)' },
+};
+
+// ── Subject emoji icons ─────────────────────────────────────────────────
+const SUBJECT_EMOJI = {
+  'Polity':           '⚖️',
+  'Modern History':   '📖',
+  'Ancient History':  '🏛️',
+  'Medieval History': '🏰',
+  'Biology':          '🔬',
+  'Chemistry':        '⚗️',
+  'Physics':          '⚡',
+  'Geography':        '🌍',
+  'Economy':          '💰',
+  'Static GK':        '📚',
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────
@@ -156,6 +169,11 @@ export default function AnalysisPage() {
   const [ctaError,         setCtaError]         = useState('');
   const [showSignIn,       setShowSignIn]       = useState(false);
   const [lockedAnalysisFeature, setLockedAnalysisFeature] = useState(null);
+
+  // 4-tab navigation inside revealed content
+  const [activeView,    setActiveView]    = useState('dashboard');
+  const [subjectFilter, setSubjectFilter] = useState('All');
+  const [weakTab,       setWeakTab]       = useState('subjects');
 
   const planRef       = useRef(null);
   const autoCallFired = useRef(false);
@@ -270,6 +288,10 @@ export default function AnalysisPage() {
   const selected = SUBJECTS.find(s => s.name === selectedSubject) || SUBJECTS[0];
   const hasHistory = activity?.hasHistory;
 
+  // Derived sample stats used across views
+  const avgAccuracy = Math.round(SUBJECTS.reduce((s, x) => s + x.acc, 0) / SUBJECTS.length);
+  const strongCount = SUBJECTS.filter(s => s.acc >= 65).length;
+
   // ── Signed-in gate: Analysis is for logged-in users only ───────────────
   if (status === 'loading') {
     return (
@@ -296,28 +318,28 @@ export default function AnalysisPage() {
         title: 'Subject Health',
         unlockTitle: 'Unlock Subject Health',
         unlockBody: 'Sign in to see your strong and weak GK subjects based on your quiz history.',
-        unlockNote: 'Free \u2022 No payment \u2022 Uses your real practice data',
+        unlockNote: 'Free • No payment • Uses your real practice data',
       },
       {
         Icon: LucideTarget,
         title: 'Practice Plan',
         unlockTitle: 'Unlock Practice Plan',
         unlockBody: 'Sign in to get a focused practice plan based on your mistakes and skipped questions.',
-        unlockNote: 'Free \u2022 No payment \u2022 Built from your quiz history',
+        unlockNote: 'Free • No payment • Built from your quiz history',
       },
       {
         Icon: LucideTrending,
         title: 'Topic Intelligence',
         unlockTitle: 'Unlock Topic Intelligence',
         unlockBody: 'Sign in to discover weak topics, repeated mistakes, and high-priority revision areas.',
-        unlockNote: 'Free \u2022 No payment \u2022 Helps you revise smarter',
+        unlockNote: 'Free • No payment • Helps you revise smarter',
       },
       {
         Icon: LucideZap,
         title: 'Marks Recovery',
         unlockTitle: 'Unlock Marks Recovery',
         unlockBody: 'Sign in to find where you are losing marks and which topics can improve your score fastest.',
-        unlockNote: 'Free \u2022 No payment \u2022 Based on your actual attempts',
+        unlockNote: 'Free • No payment • Based on your actual attempts',
       },
     ];
 
@@ -720,11 +742,11 @@ export default function AnalysisPage() {
               </div>
             )}
 
-            {/* ── Revealed preview content (Sections 4–10) ──────────── */}
+            {/* ── Revealed: 4-Tab Analysis Layout ───────────────────── */}
             {revealed && (
               <>
-                {/* Section 4: Sample Analysis Label */}
-                <div className="reveal" style={{ animationDelay: '0ms', display: 'flex', alignItems: 'center', gap: 8, padding: '0 4px', marginBottom: 14 }}>
+                {/* Sample label */}
+                <div className="reveal" style={{ animationDelay: '0ms', display: 'flex', alignItems: 'center', gap: 8, padding: '0 4px', marginBottom: 12 }}>
                   <span style={{ fontSize: 13 }}>📋</span>
                   <span className="font-sans" style={{ fontSize: 12, fontWeight: 700, color: TEXT_SEC }}>
                     Sample Analysis
@@ -734,227 +756,604 @@ export default function AnalysisPage() {
                   </span>
                 </div>
 
-                {/* Section 5: Subject Health Carousel */}
-                <div className="reveal" style={{ animationDelay: '0ms', marginBottom: 16 }}>
-                  <div style={{ marginBottom: 12, padding: '0 2px' }}>
-                    <div className="font-display" style={{ fontSize: 14, fontWeight: 700, color: TEXT_PRI, marginBottom: 4 }}>
-                      Subject Health
+                {/* Tab navigation */}
+                <div className="reveal" style={{
+                  animationDelay: '40ms',
+                  display: 'flex', gap: 8, marginBottom: 16,
+                  overflowX: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none',
+                  paddingBottom: 2,
+                }}>
+                  {[
+                    { key: 'dashboard', label: '📊 Dashboard' },
+                    { key: 'subjects',  label: '📚 Subjects'  },
+                    { key: 'topics',    label: '📋 Topics'    },
+                    { key: 'weak',      label: '🎯 Weak Areas' },
+                  ].map(({ key, label }) => {
+                    const active = activeView === key;
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => setActiveView(key)}
+                        style={{
+                          flexShrink: 0, padding: '8px 16px', borderRadius: 99,
+                          border: `1px solid ${active ? ORANGE : BORDER}`,
+                          background: active ? ORANGE : BG_CARD,
+                          color: active ? '#fff' : TEXT_SEC,
+                          fontSize: 12, fontWeight: active ? 700 : 500,
+                          cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
+                          transition: 'background 150ms ease, border-color 150ms ease, color 150ms ease',
+                          boxShadow: active ? 'var(--ssc-shadow-cta)' : SOFT_SHADOW,
+                        }}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* ── DASHBOARD VIEW ─────────────────────────────────── */}
+                {activeView === 'dashboard' && (
+                  <div className="reveal" style={{ animationDelay: '80ms' }}>
+
+                    {/* Performance Overview — 2×2 stats grid */}
+                    <div style={{ marginBottom: 16 }}>
+                      <div className="font-display" style={{ fontSize: 14, fontWeight: 700, color: TEXT_PRI, marginBottom: 10, padding: '0 2px' }}>
+                        Performance Overview
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                        {[
+                          { emoji: '📊', value: activity.totalQuizzes, label: 'Quizzes',    sub: 'Attempted', isReal: true  },
+                          { emoji: '🎯', value: `${avgAccuracy}%`,     label: 'Avg Accuracy', sub: 'Sample ✱', isReal: false },
+                          { emoji: '📝', value: fmtCompact(activity.totalQuestions), label: 'Questions', sub: 'Practiced', isReal: true },
+                          { emoji: '⭐', value: `${strongCount}/${SUBJECTS.length}`, label: 'Strong',    sub: 'Subjects (Sample ✱)', isReal: false },
+                        ].map(({ emoji, value, label, sub, isReal }) => (
+                          <div key={label} style={{
+                            background: BG_CARD, border: `1px solid ${BORDER}`,
+                            borderRadius: 14, padding: '14px 12px', boxShadow: SOFT_SHADOW,
+                          }}>
+                            <div style={{ fontSize: 20, marginBottom: 6 }}>{emoji}</div>
+                            <div className="font-display" style={{ fontSize: 22, fontWeight: 900, color: TEXT_PRI, lineHeight: 1, marginBottom: 4 }}>{value}</div>
+                            <div className="font-sans" style={{ fontSize: 12, fontWeight: 700, color: TEXT_SEC }}>{label}</div>
+                            <div className="font-sans" style={{ fontSize: 10, color: isReal ? TEAL : TEXT_MUT, marginTop: 2, fontWeight: 600 }}>{sub}</div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <div className="font-sans" style={{ fontSize: 12, color: TEXT_MUT }}>
-                      Showing analysis for: <span style={{ fontWeight: 700, color: ORANGE }}>{selectedSubject}</span>
+
+                    {/* Subject Accuracy Snapshot — horizontal bars */}
+                    <div style={{ ...card, marginBottom: 16 }}>
+                      <div className="font-display" style={{ fontSize: 14, fontWeight: 700, color: TEXT_PRI, marginBottom: 14 }}>
+                        Subject Accuracy Snapshot
+                      </div>
+                      {[...SUBJECTS].sort((a, b) => b.acc - a.acc).map(({ name, acc }) => {
+                        const st = statusFor(acc);
+                        return (
+                          <div key={name} style={{ marginBottom: 11 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                              <span className="font-sans" style={{ fontSize: 12, fontWeight: 700, color: TEXT_PRI, maxWidth: '62%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {SUBJECT_EMOJI[name] || '📚'} {name}
+                              </span>
+                              <span className="font-display" style={{ fontSize: 12, fontWeight: 800, color: st.color }}>{acc}%</span>
+                            </div>
+                            <div style={{ height: 6, background: 'var(--ssc-disabled-bg)', borderRadius: 99, overflow: 'hidden' }}>
+                              <div style={{ width: `${acc}%`, height: '100%', background: st.color, borderRadius: 99, transition: 'width 0.6s ease' }} />
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 6, scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                    {SUBJECTS.map(({ name, acc }) => {
-                      const st = statusFor(acc);
-                      const isSel = selectedSubject === name;
+
+                    {/* Performance Distribution */}
+                    {(() => {
+                      const total = SUBJECTS.length;
+                      const distRows = [
+                        { label: 'Excellent (≥80%)', count: SUBJECTS.filter(s => s.acc >= 80).length, dot: 'var(--ssc-success)' },
+                        { label: 'Good (65–79%)',    count: SUBJECTS.filter(s => s.acc >= 65 && s.acc < 80).length, dot: 'var(--ssc-rank)' },
+                        { label: 'Average (50–64%)', count: SUBJECTS.filter(s => s.acc >= 50 && s.acc < 65).length, dot: 'var(--ssc-warning)' },
+                        { label: 'Needs Work (<50%)',count: SUBJECTS.filter(s => s.acc < 50).length, dot: 'var(--ssc-danger)' },
+                      ];
                       return (
-                        <div
-                          key={name}
-                          onClick={() => selectSubject(name)}
-                          style={{
-                            flexShrink: 0, width: 120,
-                            background: isSel ? 'rgba(255,107,22,0.08)' : BG_CARD,
-                            border: `1px solid ${isSel ? ORANGE : BORDER}`,
-                            borderRadius: 14, padding: '12px 12px 11px',
-                            cursor: 'pointer',
-                            transition: 'border-color 150ms ease, box-shadow 150ms ease, background 150ms ease',
-                            display: 'flex', flexDirection: 'column',
-                          }}
-                        >
-                          <div className="font-display" style={{ fontSize: 13, fontWeight: 700, color: TEXT_PRI, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: 8 }}>
-                            {name}
+                        <div style={{ ...card, marginBottom: 16 }}>
+                          <div className="font-display" style={{ fontSize: 14, fontWeight: 700, color: TEXT_PRI, marginBottom: 14 }}>
+                            Performance Distribution
                           </div>
-                          <div className="font-display" style={{ fontSize: 22, fontWeight: 900, color: st.color, lineHeight: 1, marginBottom: 6 }}>
-                            {acc}%
-                          </div>
-                          {isSel && (
-                            <div style={{ marginBottom: 7 }}>
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 9, fontWeight: 800, color: '#fff', background: ORANGE, borderRadius: 99, padding: '2px 8px' }}>
-                                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                                Selected
+                          {distRows.map(({ label, count, dot }) => (
+                            <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                              <div style={{ width: 10, height: 10, borderRadius: 99, background: dot, flexShrink: 0 }} />
+                              <span className="font-sans" style={{ fontSize: 12, color: TEXT_SEC, flex: 1 }}>{label}</span>
+                              <span className="font-display" style={{ fontSize: 14, fontWeight: 800, color: dot }}>{count}</span>
+                              <span className="font-sans" style={{ fontSize: 11, color: TEXT_MUT, width: 32, textAlign: 'right' }}>
+                                {Math.round(count / total * 100)}%
                               </span>
                             </div>
-                          )}
-                          <div style={{ marginBottom: 7 }}>
-                            <span style={{ fontSize: 10, fontWeight: 700, color: st.color, background: st.bg, borderRadius: 99, padding: '2px 8px' }}>
-                              {st.label}
-                            </span>
-                          </div>
-                          <div className="font-sans" style={{ fontSize: 10, color: st.up ? 'var(--ssc-success)' : 'var(--ssc-danger)', lineHeight: 1.3, display: 'flex', alignItems: 'center', gap: 3 }}>
-                            <span style={{ flexShrink: 0 }}>{st.up ? '↑' : '↓'}</span>
-                            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{st.impact}</span>
+                          ))}
+                          <div style={{ height: 7, background: 'var(--ssc-disabled-bg)', borderRadius: 99, overflow: 'hidden', marginTop: 4 }}>
+                            <div style={{
+                              height: '100%', borderRadius: 99,
+                              background: `linear-gradient(to right,
+                                var(--ssc-success) ${distRows[0].count / total * 100}%,
+                                var(--ssc-rank) ${(distRows[0].count + distRows[1].count) / total * 100}%,
+                                var(--ssc-warning) ${(distRows[0].count + distRows[1].count + distRows[2].count) / total * 100}%,
+                                var(--ssc-danger) 100%)`,
+                            }} />
                           </div>
                         </div>
                       );
-                    })}
-                  </div>
-                </div>
+                    })()}
 
-                {/* Section 6: Subject Practice Plan (hero) */}
-                <div ref={planRef} className="reveal" style={{ animationDelay: '80ms' }}>
-                  {(() => {
-                    const st = statusFor(selected.acc);
-                    const targetMarker = Math.min(100, selected.target);
-                    return (
-                      <div style={{
-                        ...card,
-                        border: `1px solid ${st.color}40`,
-                        background: 'linear-gradient(135deg, #FFFFFF 0%, #F8FEFD 100%)',
-                        boxShadow: SOFT_SHADOW,
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                          <span className="font-display" style={{ fontSize: 16, fontWeight: 800, color: TEXT_PRI }}>
-                            {selected.name} Practice Plan
-                          </span>
-                          <span style={{ fontSize: 10, fontWeight: 700, color: st.color, background: st.bg, borderRadius: 99, padding: '3px 10px' }}>
-                            {st.label}
-                          </span>
-                        </div>
-
-                        {/* Accuracy → Target */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                          <span className="font-display" style={{ fontSize: 24, fontWeight: 900, color: st.color, lineHeight: 1 }}>{selected.acc}%</span>
-                          <span className="font-sans" style={{ fontSize: 13, color: TEXT_MUT }}>accuracy</span>
-                          <span className="font-sans" style={{ fontSize: 13, color: TEXT_MUT }}>→</span>
-                          <span className="font-sans" style={{ fontSize: 13, fontWeight: 700, color: TEAL }}>Target: {selected.target}%</span>
-                        </div>
-
-                        {/* Two-tone progress bar with target marker */}
-                        <div style={{ position: 'relative', background: 'var(--ssc-disabled-bg)', borderRadius: 99, height: 10, overflow: 'hidden', marginBottom: 4 }}>
-                          <div style={{ width: `${selected.acc}%`, height: '100%', background: st.color, borderRadius: 99, transition: 'width 0.6s ease' }} />
-                          <div style={{ position: 'absolute', top: -2, bottom: -2, left: `${targetMarker}%`, width: 2, background: TEAL, opacity: 0.9 }} />
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-                          <span className="font-sans" style={{ fontSize: 10, color: TEXT_MUT }}>Now</span>
-                          <span className="font-sans" style={{ fontSize: 10, color: TEAL }}>Target</span>
-                        </div>
-
-                        {/* Detail rows */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
-                          <div style={{ display: 'flex', gap: 8 }}>
-                            <span className="font-sans" style={{ fontSize: 12, fontWeight: 700, color: TEXT_MUT, width: 120, flexShrink: 0 }}>Questions needed:</span>
-                            <span className="font-sans" style={{ fontSize: 12, color: TEXT_SEC }}>~{selected.need} more</span>
-                          </div>
-                          <div style={{ display: 'flex', gap: 8 }}>
-                            <span className="font-sans" style={{ fontSize: 12, fontWeight: 700, color: TEXT_MUT, width: 120, flexShrink: 0 }}>Focus topics:</span>
-                            <span className="font-sans" style={{ fontSize: 12, color: TEXT_SEC }}>{selected.focusTopics.join(', ')}</span>
-                          </div>
-                        </div>
-
-                        {/* Marks recoverable — the emotional anchor */}
-                        <div style={{ background: ORANGE_DIM, border: `1px solid ${ORANGE}33`, borderRadius: 12, padding: '11px 14px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{ fontSize: 16 }}>💡</span>
-                          <span className="font-sans" style={{ fontSize: 13, color: TEXT_PRI }}>
-                            Marks recoverable: <span style={{ fontWeight: 800, color: ORANGE }}>{selected.marks} marks</span>
-                          </span>
-                        </div>
-
+                    {/* Quick Navigation Tiles — 2×2 */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+                      {[
+                        { key: 'subjects', emoji: '📚', label: 'Subject Analysis', desc: 'View all 10 subjects' },
+                        { key: 'topics',   emoji: '📋', label: 'Topic Analysis',   desc: 'Drill into topics'   },
+                        { key: 'weak',     emoji: '🎯', label: 'Weak Areas',       desc: 'Focus & recover marks' },
+                        { key: 'practice', emoji: '▶️', label: 'Practice Now',     desc: selected.name         },
+                      ].map(({ key, emoji, label, desc }) => (
                         <button
-                          onClick={() => router.push(`/quiz-setup?subject=${encodeURIComponent(selected.name)}&topic=${encodeURIComponent(selected.focusTopics[0])}&count=25&sourceScreen=analysis`)}
-                          style={{ width: '100%', padding: '13px 0', borderRadius: 12, background: ORANGE, border: 'none', color: '#fff', fontSize: 14, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', transition: 'opacity 150ms ease', boxShadow: 'var(--ssc-shadow-cta)' }}
+                          key={key}
+                          onClick={() => key === 'practice'
+                            ? router.push(`/quiz-setup?subject=${encodeURIComponent(selected.name)}&count=25&sourceScreen=analysis`)
+                            : setActiveView(key)
+                          }
+                          style={{
+                            background: BG_CARD, border: `1px solid ${BORDER}`, borderRadius: 14,
+                            padding: '14px 12px', cursor: 'pointer', fontFamily: 'inherit',
+                            textAlign: 'left', boxShadow: SOFT_SHADOW,
+                            transition: 'border-color 150ms ease, box-shadow 150ms ease',
+                          }}
+                          onPointerEnter={e => { e.currentTarget.style.borderColor = ORANGE; }}
+                          onPointerLeave={e => { e.currentTarget.style.borderColor = BORDER; }}
+                        >
+                          <div style={{ fontSize: 22, marginBottom: 6 }}>{emoji}</div>
+                          <div className="font-display" style={{ fontSize: 13, fontWeight: 800, color: TEXT_PRI, marginBottom: 3 }}>{label}</div>
+                          <div className="font-sans" style={{ fontSize: 11, color: TEXT_MUT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{desc}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── SUBJECT ANALYSIS VIEW ─────────────────────────── */}
+                {activeView === 'subjects' && (
+                  <div className="reveal" style={{ animationDelay: '80ms' }}>
+
+                    {/* Filter chips */}
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 14, overflowX: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                      {[
+                        { key: 'All',    label: 'All Subjects'    },
+                        { key: 'Strong', label: 'Strong Subjects' },
+                        { key: 'Weak',   label: 'Weak Subjects'   },
+                      ].map(({ key, label }) => {
+                        const active = subjectFilter === key;
+                        return (
+                          <button
+                            key={key}
+                            onClick={() => setSubjectFilter(key)}
+                            style={{
+                              flexShrink: 0, padding: '7px 16px', borderRadius: 99,
+                              border: `1px solid ${active ? ORANGE : BORDER}`,
+                              background: active ? ORANGE : BG_CARD,
+                              color: active ? '#fff' : TEXT_SEC,
+                              fontSize: 13, fontWeight: active ? 700 : 500,
+                              cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
+                              transition: 'all 150ms ease',
+                            }}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Overall performance card */}
+                    {(() => {
+                      const st = statusFor(avgAccuracy);
+                      return (
+                        <div style={{
+                          ...card, marginBottom: 14,
+                          background: `linear-gradient(135deg, ${st.bg}, #FFFFFF)`,
+                          border: `1px solid ${st.color}30`,
+                        }}>
+                          <div className="font-sans" style={{ fontSize: 12, fontWeight: 700, color: TEXT_MUT, marginBottom: 8 }}>
+                            Overall Performance
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <span className="font-display" style={{ fontSize: 32, fontWeight: 900, color: st.color, lineHeight: 1 }}>
+                              {avgAccuracy}%
+                            </span>
+                            <div>
+                              <span style={{ fontSize: 11, fontWeight: 700, color: st.color, background: st.bg, borderRadius: 99, padding: '3px 10px', border: `1px solid ${st.color}30` }}>
+                                {st.label}
+                              </span>
+                              <div className="font-sans" style={{ fontSize: 10, color: TEXT_MUT, marginTop: 5 }}>
+                                Sample · avg across {SUBJECTS.length} subjects
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Subject rows */}
+                    {(() => {
+                      const filtered = subjectFilter === 'Strong'
+                        ? SUBJECTS.filter(s => s.acc >= 65)
+                        : subjectFilter === 'Weak'
+                          ? SUBJECTS.filter(s => s.acc < 65)
+                          : SUBJECTS;
+                      const sorted = [...filtered].sort((a, b) => b.acc - a.acc);
+                      if (sorted.length === 0) {
+                        return (
+                          <div style={{ ...card, textAlign: 'center', color: TEXT_MUT, fontSize: 13, padding: '32px 20px' }}>
+                            No subjects in this filter.
+                          </div>
+                        );
+                      }
+                      return sorted.map(({ name, acc, marks, focusTopics }) => {
+                        const st = statusFor(acc);
+                        const emoji = SUBJECT_EMOJI[name] || '📚';
+                        return (
+                          <div key={name} style={{ ...card, marginBottom: 10, padding: '14px 16px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              {/* Subject icon chip */}
+                              <div style={{
+                                width: 38, height: 38, borderRadius: 11, flexShrink: 0,
+                                background: `${st.color}18`,
+                                border: `1px solid ${st.color}28`,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
+                              }}>
+                                {emoji}
+                              </div>
+                              {/* Name + progress bar */}
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div className="font-display" style={{ fontSize: 14, fontWeight: 800, color: TEXT_PRI, marginBottom: 6 }}>{name}</div>
+                                <div style={{ height: 6, background: 'var(--ssc-disabled-bg)', borderRadius: 99, overflow: 'hidden' }}>
+                                  <div style={{ width: `${acc}%`, height: '100%', background: st.color, borderRadius: 99, transition: 'width 0.6s ease' }} />
+                                </div>
+                              </div>
+                              {/* Accuracy + status */}
+                              <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 4 }}>
+                                <div className="font-display" style={{ fontSize: 17, fontWeight: 900, color: st.color, lineHeight: 1, marginBottom: 4 }}>{acc}%</div>
+                                <span style={{ fontSize: 10, fontWeight: 700, color: st.color, background: st.bg, borderRadius: 99, padding: '2px 8px' }}>
+                                  {st.label}
+                                </span>
+                              </div>
+                              {/* Practice chevron */}
+                              <button
+                                onClick={() => router.push(`/quiz-setup?subject=${encodeURIComponent(name)}&count=25&sourceScreen=analysis`)}
+                                style={{ background: 'none', border: 'none', color: TEXT_MUT, fontSize: 20, cursor: 'pointer', padding: '0 0 0 4px', lineHeight: 1, flexShrink: 0 }}
+                                title={`Practice ${name}`}
+                              >
+                                ›
+                              </button>
+                            </div>
+                            {/* Sub-info row */}
+                            <div className="font-sans" style={{ fontSize: 11, color: TEXT_MUT, marginTop: 8, paddingLeft: 48 }}>
+                              Focus: {focusTopics.join(', ')} · Potential: <span style={{ color: ORANGE, fontWeight: 700 }}>{marks} marks</span>
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                )}
+
+                {/* ── TOPIC ANALYSIS VIEW ───────────────────────────── */}
+                {activeView === 'topics' && (
+                  <div className="reveal" style={{ animationDelay: '80ms' }}>
+
+                    {/* Subject selector — scrollable chips */}
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 14, overflowX: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                      {SUBJECTS.map(s => {
+                        const active = selectedSubject === s.name;
+                        return (
+                          <button
+                            key={s.name}
+                            onClick={() => selectSubject(s.name)}
+                            style={{
+                              flexShrink: 0, padding: '7px 13px', borderRadius: 99,
+                              border: `1px solid ${active ? ORANGE : BORDER}`,
+                              background: active ? ORANGE : BG_CARD,
+                              color: active ? '#fff' : TEXT_SEC,
+                              fontSize: 12, fontWeight: active ? 700 : 500,
+                              cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
+                              transition: 'all 150ms ease',
+                            }}
+                          >
+                            {SUBJECT_EMOJI[s.name] || '📚'} {s.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Summary card for selected subject */}
+                    {(() => {
+                      const topics = TOPICS.filter(t => t.subject === selectedSubject);
+                      const totalAtt = topics.reduce((s, t) => s + t.attempted, 0);
+                      const totalCorrect = topics.reduce((s, t) => s + Math.round(t.attempted * t.acc / 100), 0);
+                      const totalWrong = totalAtt - totalCorrect;
+                      const subAvgAcc = topics.length
+                        ? Math.round(topics.reduce((s, t) => s + t.acc, 0) / topics.length)
+                        : 0;
+                      const st = statusFor(subAvgAcc);
+                      return (
+                        <div style={{ ...card, marginBottom: 14, padding: '14px 16px' }}>
+                          <div className="font-display" style={{ fontSize: 14, fontWeight: 800, color: TEXT_PRI, marginBottom: 12 }}>
+                            {selectedSubject} — Topic Summary
+                          </div>
+                          {topics.length > 0 ? (
+                            <div style={{ display: 'flex', justifyContent: 'space-around' }}>
+                              {[
+                                { label: 'Accuracy', value: `${subAvgAcc}%`, color: st.color },
+                                { label: 'Correct',  value: totalCorrect,    color: 'var(--ssc-success)' },
+                                { label: 'Wrong',    value: totalWrong,      color: 'var(--ssc-danger)'  },
+                                { label: 'Topics',   value: topics.length,   color: TEXT_SEC },
+                              ].map(({ label, value, color }) => (
+                                <div key={label} style={{ textAlign: 'center' }}>
+                                  <div className="font-display" style={{ fontSize: 20, fontWeight: 900, color, lineHeight: 1, marginBottom: 4 }}>{value}</div>
+                                  <div className="font-sans" style={{ fontSize: 10, color: TEXT_MUT, fontWeight: 600 }}>{label}</div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div style={{ textAlign: 'center', color: TEXT_MUT, fontSize: 13, padding: '8px 0' }}>
+                              No topic data in sample for this subject.
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+
+                    {/* Topic rows */}
+                    {(() => {
+                      const topics = TOPICS.filter(t => t.subject === selectedSubject);
+                      if (topics.length === 0) {
+                        return (
+                          <div style={{ ...card, textAlign: 'center', padding: '24px 20px', color: TEXT_MUT, fontSize: 13 }}>
+                            <div style={{ fontSize: 24, marginBottom: 10 }}>📋</div>
+                            No topics in sample for <strong style={{ color: TEXT_PRI }}>{selectedSubject}</strong>.
+                            <br />
+                            <span style={{ fontSize: 12 }}>Select another subject above to explore topics.</span>
+                          </div>
+                        );
+                      }
+                      return topics.map(({ name, acc, attempted, tags }) => {
+                        const st = statusFor(acc);
+                        return (
+                          <div key={name} style={{ ...card, marginBottom: 10, padding: '14px 16px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div className="font-display" style={{ fontSize: 14, fontWeight: 800, color: TEXT_PRI, marginBottom: 2 }}>{name}</div>
+                                <div className="font-sans" style={{ fontSize: 11, color: TEXT_MUT }}>{attempted} questions attempted</div>
+                              </div>
+                              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                                <div className="font-display" style={{ fontSize: 17, fontWeight: 900, color: st.color, lineHeight: 1, marginBottom: 4 }}>{acc}%</div>
+                                <span style={{ fontSize: 10, fontWeight: 700, color: st.color, background: st.bg, borderRadius: 99, padding: '2px 8px' }}>
+                                  {st.label}
+                                </span>
+                              </div>
+                            </div>
+                            {/* Progress bar */}
+                            <div style={{ height: 6, background: 'var(--ssc-disabled-bg)', borderRadius: 99, overflow: 'hidden', marginBottom: 10 }}>
+                              <div style={{ width: `${acc}%`, height: '100%', background: st.color, borderRadius: 99, transition: 'width 0.6s ease' }} />
+                            </div>
+                            {/* Tags + practice button */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                              <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', flex: 1, minWidth: 0 }}>
+                                {tags.map(tag => (
+                                  <span key={tag} style={{ fontSize: 10, fontWeight: 700, color: TAG_COLOR[tag].color, background: TAG_COLOR[tag].bg, borderRadius: 99, padding: '2px 8px' }}>
+                                    {tag}
+                                  </span>
+                                ))}
+                              </div>
+                              <button
+                                onClick={() => router.push(`/quiz-setup?subject=${encodeURIComponent(selectedSubject)}&topic=${encodeURIComponent(name)}&count=25&sourceScreen=analysis`)}
+                                style={{ flexShrink: 0, background: ORANGE, border: 'none', borderRadius: 99, padding: '6px 13px', color: '#fff', fontSize: 11, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', transition: 'opacity 150ms ease' }}
+                                onPointerDown={e => { e.currentTarget.style.opacity = '0.8'; }}
+                                onPointerUp={e => { e.currentTarget.style.opacity = '1'; }}
+                                onPointerLeave={e => { e.currentTarget.style.opacity = '1'; }}
+                              >
+                                Practice 25Q →
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                )}
+
+                {/* ── WEAK AREAS VIEW ───────────────────────────────── */}
+                {activeView === 'weak' && (
+                  <div className="reveal" style={{ animationDelay: '80ms' }}>
+
+                    {/* Sub-tabs: By Subject / By Topic / Mistakes */}
+                    <div style={{
+                      display: 'flex', gap: 0, background: BG_DEEP,
+                      border: `1px solid ${BORDER}`, borderRadius: 12,
+                      padding: 3, marginBottom: 14,
+                    }}>
+                      {[
+                        { key: 'subjects', label: 'By Subject' },
+                        { key: 'topics',   label: 'By Topic'   },
+                        { key: 'mistakes', label: 'Mistakes'   },
+                      ].map(({ key, label }) => {
+                        const active = weakTab === key;
+                        return (
+                          <button
+                            key={key}
+                            onClick={() => setWeakTab(key)}
+                            style={{
+                              flex: 1, padding: '8px 0', borderRadius: 10, border: 'none',
+                              background: active ? BG_CARD : 'transparent',
+                              color: active ? TEXT_PRI : TEXT_MUT,
+                              fontSize: 12, fontWeight: active ? 800 : 500,
+                              cursor: 'pointer', fontFamily: 'inherit',
+                              boxShadow: active ? SOFT_SHADOW : 'none',
+                              transition: 'all 150ms ease',
+                            }}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Focus card */}
+                    <div style={{
+                      background: 'var(--ssc-danger-soft)',
+                      border: '1px solid rgba(239,68,68,0.22)',
+                      borderLeft: '4px solid var(--ssc-danger)',
+                      borderRadius: 14, padding: '14px 16px', marginBottom: 14,
+                      display: 'flex', gap: 10, alignItems: 'flex-start',
+                    }}>
+                      <span style={{ fontSize: 22, flexShrink: 0, lineHeight: 1, marginTop: 1 }}>🎯</span>
+                      <div>
+                        <div className="font-display" style={{ fontSize: 14, fontWeight: 800, color: 'var(--ssc-danger)', marginBottom: 4 }}>
+                          Focus on Weak Areas
+                        </div>
+                        <div className="font-sans" style={{ fontSize: 12, color: TEXT_SEC, lineHeight: 1.4 }}>
+                          Improving these areas can recover{' '}
+                          <span style={{ fontWeight: 700, color: ORANGE }}>8–14 marks</span>{' '}
+                          in your next SSC exam.
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* By Subject tab */}
+                    {weakTab === 'subjects' && (() => {
+                      const weakSubjects = SUBJECTS.filter(s => s.acc < 65).sort((a, b) => a.acc - b.acc);
+                      return (
+                        <>
+                          <div className="font-sans" style={{ fontSize: 12, fontWeight: 700, color: TEXT_MUT, marginBottom: 10, padding: '0 2px' }}>
+                            {weakSubjects.length} Subjects Need Attention
+                          </div>
+                          {weakSubjects.map(({ name, acc, marks, focusTopics }) => {
+                            const st = statusFor(acc);
+                            const emoji = SUBJECT_EMOJI[name] || '📚';
+                            return (
+                              <div key={name} style={{ ...card, marginBottom: 10, padding: '14px 16px', border: `1px solid ${st.color}28` }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                                  <div style={{
+                                    width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+                                    background: `${st.color}18`, border: `1px solid ${st.color}25`,
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17,
+                                  }}>
+                                    {emoji}
+                                  </div>
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div className="font-display" style={{ fontSize: 14, fontWeight: 800, color: TEXT_PRI }}>{name}</div>
+                                    <div className="font-sans" style={{ fontSize: 11, color: TEXT_MUT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                      Focus: {focusTopics.join(', ')}
+                                    </div>
+                                  </div>
+                                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                                    <div className="font-display" style={{ fontSize: 18, fontWeight: 900, color: st.color, lineHeight: 1, marginBottom: 4 }}>{acc}%</div>
+                                    <span style={{ fontSize: 9, fontWeight: 700, color: st.color, background: st.bg, borderRadius: 99, padding: '2px 7px' }}>{st.label}</span>
+                                  </div>
+                                </div>
+                                <div style={{ height: 5, background: 'var(--ssc-disabled-bg)', borderRadius: 99, overflow: 'hidden', marginBottom: 10 }}>
+                                  <div style={{ width: `${acc}%`, height: '100%', background: st.color, borderRadius: 99 }} />
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <span className="font-sans" style={{ fontSize: 11, color: TEXT_MUT }}>
+                                    Potential: <span style={{ fontWeight: 700, color: ORANGE }}>{marks} marks</span>
+                                  </span>
+                                  <button
+                                    onClick={() => router.push(`/quiz-setup?subject=${encodeURIComponent(name)}&count=25&sourceScreen=analysis`)}
+                                    style={{ background: ORANGE, border: 'none', borderRadius: 99, padding: '5px 12px', color: '#fff', fontSize: 11, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', transition: 'opacity 150ms ease' }}
+                                    onPointerDown={e => { e.currentTarget.style.opacity = '0.8'; }}
+                                    onPointerUp={e => { e.currentTarget.style.opacity = '1'; }}
+                                    onPointerLeave={e => { e.currentTarget.style.opacity = '1'; }}
+                                  >
+                                    Practice →
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </>
+                      );
+                    })()}
+
+                    {/* By Topic tab */}
+                    {weakTab === 'topics' && (() => {
+                      const weakTopics = TOPICS.filter(t => t.acc < 60).sort((a, b) => a.acc - b.acc);
+                      return (
+                        <>
+                          <div className="font-sans" style={{ fontSize: 12, fontWeight: 700, color: TEXT_MUT, marginBottom: 10, padding: '0 2px' }}>
+                            {weakTopics.length} Topics Need Attention
+                          </div>
+                          {weakTopics.map(({ subject, name, acc, attempted, tags }) => {
+                            const st = statusFor(acc);
+                            return (
+                              <div key={name} style={{ ...card, marginBottom: 10, padding: '14px 16px', border: `1px solid ${st.color}28` }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div className="font-display" style={{ fontSize: 14, fontWeight: 800, color: TEXT_PRI }}>{name}</div>
+                                    <div className="font-sans" style={{ fontSize: 11, color: TEXT_MUT }}>{subject} · {attempted} attempted</div>
+                                  </div>
+                                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                                    <div className="font-display" style={{ fontSize: 17, fontWeight: 900, color: st.color, lineHeight: 1, marginBottom: 4 }}>{acc}%</div>
+                                    <span style={{ fontSize: 9, fontWeight: 700, color: st.color, background: st.bg, borderRadius: 99, padding: '2px 7px' }}>{st.label}</span>
+                                  </div>
+                                </div>
+                                <div style={{ height: 5, background: 'var(--ssc-disabled-bg)', borderRadius: 99, overflow: 'hidden', marginBottom: 10 }}>
+                                  <div style={{ width: `${acc}%`, height: '100%', background: st.color, borderRadius: 99 }} />
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <div style={{ display: 'flex', gap: 4, flex: 1, minWidth: 0, flexWrap: 'wrap' }}>
+                                    {tags.slice(0, 1).map(tag => (
+                                      <span key={tag} style={{ fontSize: 9, fontWeight: 700, color: TAG_COLOR[tag].color, background: TAG_COLOR[tag].bg, borderRadius: 99, padding: '2px 7px' }}>{tag}</span>
+                                    ))}
+                                  </div>
+                                  <button
+                                    onClick={() => router.push(`/quiz-setup?subject=${encodeURIComponent(subject)}&topic=${encodeURIComponent(name)}&count=25&sourceScreen=analysis`)}
+                                    style={{ flexShrink: 0, background: ORANGE, border: 'none', borderRadius: 99, padding: '5px 12px', color: '#fff', fontSize: 11, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', transition: 'opacity 150ms ease' }}
+                                    onPointerDown={e => { e.currentTarget.style.opacity = '0.8'; }}
+                                    onPointerUp={e => { e.currentTarget.style.opacity = '1'; }}
+                                    onPointerLeave={e => { e.currentTarget.style.opacity = '1'; }}
+                                  >
+                                    Practice →
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </>
+                      );
+                    })()}
+
+                    {/* Mistakes tab */}
+                    {weakTab === 'mistakes' && (
+                      <div style={{ ...card, textAlign: 'center', padding: '32px 20px' }}>
+                        <div style={{ fontSize: 28, marginBottom: 12 }}>📝</div>
+                        <div className="font-display" style={{ fontSize: 15, fontWeight: 800, color: TEXT_PRI, marginBottom: 8 }}>
+                          Mistake Review
+                        </div>
+                        <p className="font-sans" style={{ fontSize: 13, color: TEXT_SEC, lineHeight: 1.5, marginBottom: 18 }}>
+                          See the questions you got wrong and practice them again to lock in your understanding.
+                        </p>
+                        <button
+                          onClick={() => router.push('/history/mistakes')}
+                          style={{
+                            padding: '12px 28px', borderRadius: 12, background: ORANGE,
+                            border: 'none', color: '#fff', fontSize: 14, fontWeight: 800,
+                            cursor: 'pointer', fontFamily: 'inherit', transition: 'opacity 150ms ease',
+                          }}
                           onPointerDown={e => { e.currentTarget.style.opacity = '0.8'; }}
                           onPointerUp={e => { e.currentTarget.style.opacity = '1'; }}
                           onPointerLeave={e => { e.currentTarget.style.opacity = '1'; }}
                         >
-                          Practice {selected.name} →
+                          Review Mistakes →
                         </button>
                       </div>
-                    );
-                  })()}
-                </div>
-
-                {/* Section 7: Topic Recommendation Cards */}
-                <div className="reveal" style={{ animationDelay: '160ms' }}>
-                  {/* Filter tabs */}
-                  <div style={{ display: 'flex', gap: 8, marginBottom: 16, overflowX: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                    {FILTERS.map(filter => {
-                      const active = activeFilter === filter;
-                      return (
-                        <button
-                          key={filter}
-                          onClick={() => { setActiveFilter(filter); setShowAllTopics(false); }}
-                          style={{
-                            flexShrink: 0, padding: '7px 14px', borderRadius: 99,
-                            border: `1px solid ${active ? ORANGE : BORDER}`,
-                            background: active ? ORANGE : BG_CARD,
-                            color: active ? '#fff' : TEXT_SEC,
-                            fontSize: 12, fontWeight: active ? 700 : 500,
-                            cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
-                            transition: 'background 150ms ease, border-color 150ms ease, color 150ms ease',
-                          }}
-                        >
-                          {filter}
-                        </button>
-                      );
-                    })}
+                    )}
                   </div>
+                )}
 
-                  {/* Topic cards */}
-                  {(() => {
-                    const filtered = TOPICS.filter(t => t.tags.includes(activeFilter));
-                    if (filtered.length === 0) {
-                      return <div style={{ ...card, textAlign: 'center', color: TEXT_MUT, fontSize: 13 }}>No topics in this filter.</div>;
-                    }
-                    const visible = showAllTopics ? filtered : filtered.slice(0, 3);
-                    const hiddenCount = filtered.length - visible.length;
-                    return (
-                      <div style={{ marginBottom: 16 }}>
-                        {visible.map(({ subject, name, acc, attempted, tags }) => {
-                          const ringColor = acc >= 70 ? 'var(--ssc-success)' : acc >= 55 ? 'var(--ssc-warning)' : 'var(--ssc-danger)';
-                          return (
-                            <div key={name} style={{ ...card, marginBottom: 10, padding: '14px 16px' }}>
-                              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 }}>
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                  <div className="font-display" style={{ fontSize: 14, fontWeight: 800, color: TEXT_PRI, marginBottom: 3 }}>{name}</div>
-                                  <div className="font-sans" style={{ fontSize: 12, color: TEXT_MUT }}>
-                                    <span style={{ color: ringColor, fontWeight: 700 }}>{acc}%</span>
-                                    {' accuracy · '}{attempted} questions attempted
-                                  </div>
-                                </div>
-                                  <div style={{ width: 32, height: 32, borderRadius: 99, flexShrink: 0, background: `conic-gradient(${ringColor} ${acc * 3.6}deg, var(--ssc-disabled-bg) 0deg)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                  <div style={{ width: 23, height: 23, borderRadius: 99, background: BG_CARD, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                    <span className="font-sans" style={{ fontSize: 8, fontWeight: 700, color: TEXT_SEC }}>{acc}%</span>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', flex: 1, minWidth: 0 }}>
-                                  {tags.map(tag => (
-                                    <span key={tag} style={{ fontSize: 10, fontWeight: 700, color: TAG_COLOR[tag].color, background: TAG_COLOR[tag].bg, borderRadius: 99, padding: '2px 8px' }}>
-                                      {tag}
-                                    </span>
-                                  ))}
-                                </div>
-                                <button
-                                  onClick={() => router.push(`/quiz-setup?subject=${encodeURIComponent(subject)}&topic=${encodeURIComponent(name)}&count=25&sourceScreen=analysis`)}
-                                  style={{ flexShrink: 0, background: ORANGE, border: 'none', borderRadius: 99, padding: '6px 13px', color: '#fff', fontSize: 12, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', transition: 'opacity 150ms ease' }}
-                                  onPointerDown={e => { e.currentTarget.style.opacity = '0.8'; }}
-                                  onPointerUp={e => { e.currentTarget.style.opacity = '1'; }}
-                                  onPointerLeave={e => { e.currentTarget.style.opacity = '1'; }}
-                                >
-                                  Practice 25Q →
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                        {!showAllTopics && hiddenCount > 0 && (
-                          <button
-                            onClick={() => setShowAllTopics(true)}
-                            style={{ width: '100%', padding: '12px 0', borderRadius: 12, background: 'transparent', border: `1px dashed ${BORDER}`, color: TEXT_SEC, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
-                          >
-                            View {hiddenCount} More Topic{hiddenCount > 1 ? 's' : ''} →
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })()}
-                </div>
-
-                {/* Section 8: AI Detailed Analysis — Locked Premium Card */}
-                <div className="reveal" style={{ animationDelay: '240ms' }}>
+                {/* ── AI Detailed Analysis — Locked Premium Card ─────── */}
+                <div className="reveal" style={{ animationDelay: '160ms' }}>
                   <div style={{
                     background: 'linear-gradient(140deg, #FFFFFF 0%, #F8FEFD 100%)',
                     border: '1px solid rgba(14,165,164,0.28)',
@@ -1003,8 +1402,8 @@ export default function AnalysisPage() {
                   </div>
                 </div>
 
-                {/* Section 9: Interest / Notify CTA Card */}
-                <div id="interest-cta" className="reveal" style={{ animationDelay: '320ms' }}>
+                {/* ── Interest / Notify CTA Card ─────────────────────── */}
+                <div id="interest-cta" className="reveal" style={{ animationDelay: '240ms' }}>
                   <div style={{ ...card, background: 'linear-gradient(160deg, #FFFFFF 0%, #F8FEFD 58%, #FFF7E6 100%)', border: `1px solid rgba(255,106,0,0.22)`, marginBottom: 16 }}>
                     {interestRecorded ? (
                       /* State B — recorded */
@@ -1064,7 +1463,7 @@ export default function AnalysisPage() {
                     )}
                   </div>
 
-                  {/* Section 10: Disclaimer */}
+                  {/* Disclaimer */}
                   <p className="font-sans" style={{ fontSize: 12, color: TEXT_MUT, lineHeight: 1.55, textAlign: 'center', padding: '0 8px' }}>
                     This is a sample analysis preview based on a representative practice pattern. Your actual analysis will be generated from your own quiz history when the premium feature launches. Marks improvement estimates are indicative, not guaranteed.
                   </p>
