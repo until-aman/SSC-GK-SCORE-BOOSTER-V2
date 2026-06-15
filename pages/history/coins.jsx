@@ -17,6 +17,15 @@ const LEVEL_THRESHOLDS = {
   Legend: { min: 3000, max: 3000, next: null },
 };
 
+const LEVEL_NUM = { Aspirant: 1, Scholar: 2, Expert: 3, Champion: 4, Legend: 5 };
+
+const EARN_CARDS = [
+  { icon: '📝', label: 'Complete Quiz', sub: '5+ questions', value: '+10', color: 'var(--ssc-teal)' },
+  { icon: '🎯', label: 'Correct Answer', sub: 'Per correct answer', value: '+2', color: 'var(--ssc-teal)' },
+  { icon: '🌅', label: 'Daily First Quiz', sub: 'Bonus per first quiz', value: '+10', color: 'var(--ssc-orange-deep)' },
+  { icon: '🛡️', label: 'No Penalty', sub: 'Wrong or skipped', value: '-0', color: 'var(--ssc-text-muted)' },
+];
+
 export default function CoinsHistoryPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -24,7 +33,6 @@ export default function CoinsHistoryPage() {
   const [loading, setLoading] = useState(true);
   const [coinsBarWidth, setCoinsBarWidth] = useState(0);
   const [showAllSessions, setShowAllSessions] = useState(false);
-  const [earnCoinsOpen, setEarnCoinsOpen] = useState(false);
 
   const isGuest = status === 'unauthenticated';
 
@@ -103,6 +111,8 @@ export default function CoinsHistoryPage() {
   const thresh = LEVEL_THRESHOLDS[level] || LEVEL_THRESHOLDS.Aspirant;
   const nextLevel = thresh.next;
   const coinsToNext = nextLevel ? thresh.max - totalCoins : 0;
+  const levelNum = LEVEL_NUM[level] || 1;
+  const pctText = Math.round(coinsBarWidth);
 
   return (
     <>
@@ -128,107 +138,132 @@ export default function CoinsHistoryPage() {
         }
       `}</style>
       <div className="min-h-screen bg-[var(--ssc-bg)]" style={{ paddingBottom: 'var(--ssc-bottom-nav-safe-padding, 150px)' }}>
-        <div className="px-4 pt-10 pb-4 flex items-center gap-3">
+
+        {/* Header */}
+        <div style={{
+          position: 'sticky', top: 0, zIndex: 30,
+          display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px',
+          height: 56, background: 'rgba(255,255,255,0.94)',
+          backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)',
+          borderBottom: '1px solid var(--ssc-border-soft)',
+        }}>
           <BackButton />
-          <h1 className="font-display font-bold text-[20px] text-[var(--ssc-text-primary)] flex-1">Coins History</h1>
-          <button
-            onClick={fetchHistory}
-            className="w-9 h-9 flex items-center justify-center rounded-full active:scale-90 transition-transform"
-            style={{ background: 'var(--ssc-surface)', border: '1px solid var(--ssc-border-soft)', boxShadow: 'var(--ssc-shadow-card)' }}
-            title="Refresh"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ssc-teal)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="23 4 23 10 17 10" />
-              <path d="M20.49 15a9 9 0 11-2.12-9.36L23 10" />
-            </svg>
-          </button>
-        </div>
-
-        <div className="mx-4 rounded-3xl px-5 py-5" style={{ background: 'linear-gradient(135deg, #FFFFFF 0%, #FFF7E6 100%)', border: '1px solid rgba(246,179,49,0.34)', boxShadow: 'var(--ssc-shadow-card)' }}>
-          <div className="flex items-end justify-between mb-3">
-            <div>
-              <p className="font-display font-black text-4xl leading-none" style={{ color: 'var(--ssc-orange-deep)' }}>{totalCoins}</p>
-              <p className="font-sans text-sm text-[var(--ssc-text-secondary)] mt-0.5">total coins earned</p>
-            </div>
-            <div className="flex flex-col items-end gap-1">
-              <span className="rounded-full px-3 py-1 font-display font-bold text-sm" style={{ background: 'var(--ssc-success-soft)', color: 'var(--ssc-teal)', border: '1px solid rgba(14,165,164,0.22)' }}>
-                ⭐ {level}
-              </span>
-              {nextLevel && (
-                <span className="font-sans text-xs text-[var(--ssc-text-muted)]">{coinsToNext} coins to {nextLevel}</span>
-              )}
-            </div>
-          </div>
-
-          <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--ssc-disabled-bg)' }}>
-            <div
-              className="h-full rounded-full transition-all duration-700"
-              style={{ background: 'linear-gradient(90deg, var(--ssc-orange), var(--ssc-coin))', width: `${coinsBarWidth}%` }}
-            />
-          </div>
-          {nextLevel && (
-            <div className="flex justify-between font-sans text-xs text-[var(--ssc-text-muted)] mt-1">
-              <span>{thresh.min} coins</span>
-              <span>{thresh.max} coins</span>
-            </div>
-          )}
-        </div>
-
-        <div className="mx-4 mt-5 rounded-2xl overflow-hidden" style={{ background: 'var(--ssc-surface)', border: '1px solid var(--ssc-border-soft)', boxShadow: 'var(--ssc-shadow-card)' }}>
+          <h1 className="font-display font-bold text-[18px] text-[var(--ssc-text-primary)] flex-1">Coins History</h1>
           <button
             type="button"
-            onClick={() => setEarnCoinsOpen(value => !value)}
-            className="w-full px-4 py-3 text-left flex items-center justify-between gap-3"
-            style={{ borderBottom: earnCoinsOpen ? '1px solid var(--ssc-border-soft)' : '0' }}
+            className="w-9 h-9 flex items-center justify-center rounded-full"
+            style={{ background: 'var(--ssc-surface)', border: '1px solid var(--ssc-border-soft)' }}
+            title="About coins"
           >
-            <div>
-              <p className="font-display font-bold text-base text-[var(--ssc-text-primary)]">How to earn coins ⚡</p>
-              <p className="font-sans text-xs text-[var(--ssc-text-secondary)] mt-0.5">Earn more by playing consistently</p>
-            </div>
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="var(--ssc-text-muted)"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              className={`transition-transform duration-200 ${earnCoinsOpen ? 'rotate-180' : ''}`}
-            >
-              <path d="M6 9l6 6 6-6" />
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--ssc-text-muted)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 16v-4" />
+              <path d="M12 8h.01" />
             </svg>
           </button>
-          {earnCoinsOpen && (
-            <>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--ssc-border-soft)' }}>
-                    <th className="px-4 py-2.5 text-left font-sans font-medium text-xs text-[var(--ssc-text-muted)] uppercase tracking-wide">Action</th>
-                    <th className="px-4 py-2.5 text-right font-sans font-medium text-xs text-[var(--ssc-text-muted)] uppercase tracking-wide">Coins</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[
-                    { action: 'Complete a quiz (5+ questions)', coins: '+10', color: 'text-[var(--ssc-teal)]' },
-                    { action: 'Each correct answer', coins: '+2', color: 'text-[var(--ssc-teal)]' },
-                    { action: 'First quiz of the day 🌅', coins: '+10', color: 'text-[var(--ssc-orange-deep)]' },
-                    { action: 'Wrong answer', coins: '-0', color: 'text-[var(--ssc-text-muted)]' },
-                    { action: 'Skipped question', coins: '-0', color: 'text-[var(--ssc-text-muted)]' },
-                  ].map((row, i, arr) => (
-                    <tr key={row.action} style={i < arr.length - 1 ? { borderBottom: '1px solid var(--ssc-border-soft)' } : undefined}>
-                      <td className="px-4 py-3 font-sans text-sm text-[var(--ssc-text-secondary)]">{row.action}</td>
-                      <td className={`px-4 py-3 text-right font-display font-black text-sm ${row.color}`}>{row.coins}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div className="px-4 py-3" style={{ background: 'var(--ssc-teal-soft)', borderTop: '1px solid rgba(14,165,164,0.18)' }}>
-                <p className="font-sans text-xs" style={{ color: 'var(--ssc-teal)' }}>💡 Coins come from correct answers, accuracy, and completion bonuses.</p>
-              </div>
-            </>
-          )}
         </div>
 
+        {/* Hero card */}
+        <div className="mx-4 mt-4 rounded-3xl px-5 py-5" style={{
+          background: 'linear-gradient(135deg, #FFFFFF 0%, #FFF7E6 100%)',
+          border: '1px solid rgba(246,179,49,0.34)',
+          boxShadow: 'var(--ssc-shadow-card)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+            {/* Coin icon */}
+            <div style={{
+              width: 52, height: 52, borderRadius: 16, flexShrink: 0,
+              background: 'linear-gradient(145deg, #FBBF24, #F59E0B)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 4px 12px rgba(245,158,11,0.40)',
+            }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="8" />
+                <path d="M12 8v8" />
+                <path d="M9 10.5A3 3 0 0 1 12 8h2" />
+                <path d="M15 13.5A3 3 0 0 1 12 16h-2" />
+              </svg>
+            </div>
+
+            {/* Right content */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--ssc-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
+                Total Coins
+              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+                <p className="font-display font-black" style={{ fontSize: 36, color: 'var(--ssc-orange-deep)', lineHeight: 1 }}>
+                  {totalCoins}
+                </p>
+                <div style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 4,
+                  background: 'rgba(20,184,166,0.12)', border: '1px solid rgba(20,184,166,0.24)',
+                  borderRadius: 99, padding: '3px 10px',
+                }}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--ssc-teal)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  </svg>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--ssc-teal)' }}>
+                    Level {levelNum} {level}
+                  </span>
+                </div>
+              </div>
+
+              {nextLevel && (
+                <p style={{ fontSize: 12, color: 'var(--ssc-text-secondary)', marginBottom: 8 }}>
+                  {coinsToNext} coins to reach{' '}
+                  <span style={{ fontWeight: 700, color: 'var(--ssc-text-primary)' }}>{nextLevel}</span>
+                </p>
+              )}
+
+              {/* Progress bar */}
+              <div>
+                <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--ssc-disabled-bg)' }}>
+                  <div
+                    className="h-full rounded-full transition-all duration-700"
+                    style={{ background: 'linear-gradient(90deg, var(--ssc-orange), var(--ssc-coin))', width: `${coinsBarWidth}%` }}
+                  />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+                  {nextLevel ? (
+                    <>
+                      <span style={{ fontSize: 10, color: 'var(--ssc-text-muted)' }}>{thresh.min}</span>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--ssc-orange-deep)' }}>{pctText}%</span>
+                      <span style={{ fontSize: 10, color: 'var(--ssc-text-muted)' }}>{thresh.max}</span>
+                    </>
+                  ) : (
+                    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--ssc-teal)' }}>🏆 Legend — Maximum level reached!</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* How to Earn Coins — 4 icon cards */}
+        <div className="mx-4 mt-4">
+          <p className="font-display font-bold text-sm text-[var(--ssc-text-primary)] mb-3">
+            How to Earn Coins ⚡
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            {EARN_CARDS.map(card => (
+              <div key={card.label} style={{
+                background: 'var(--ssc-surface)', border: '1px solid var(--ssc-border-soft)',
+                borderRadius: 16, padding: '14px 14px 12px',
+                boxShadow: 'var(--ssc-shadow-card)',
+              }}>
+                <div style={{ fontSize: 22, marginBottom: 6 }}>{card.icon}</div>
+                <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--ssc-text-primary)', marginBottom: 2 }}>{card.label}</p>
+                <p style={{ fontSize: 11, color: 'var(--ssc-text-muted)', marginBottom: 8 }}>{card.sub}</p>
+                <p className="font-display font-black" style={{ fontSize: 18, color: card.color }}>{card.value}</p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-2 px-3 py-2 rounded-xl" style={{ background: 'var(--ssc-teal-soft)' }}>
+            <p style={{ fontSize: 11, color: 'var(--ssc-teal)' }}>💡 Coins come from correct answers, accuracy, and completion bonuses.</p>
+          </div>
+        </div>
+
+        {/* Recent Sessions */}
         <div className="mx-4 mt-4">
           {sessions.length === 0 ? (
             <div className="rounded-2xl p-8 flex flex-col items-center gap-4 text-center" style={{ background: 'var(--ssc-surface)', border: '1px solid var(--ssc-border-soft)', boxShadow: 'var(--ssc-shadow-card)' }}>
@@ -245,50 +280,39 @@ export default function CoinsHistoryPage() {
             </div>
           ) : (
             <>
-              <p className="font-display font-bold text-base text-[var(--ssc-text-primary)] mb-3">
-                Recent Sessions
-                <span className="font-normal font-sans text-xs text-[var(--ssc-text-muted)] ml-2">last {sessions.length}</span>
-              </p>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <p className="font-display font-bold text-base text-[var(--ssc-text-primary)]">Recent Sessions</p>
+                {sessions.length > 3 && (
+                  <button
+                    onClick={() => setShowAllSessions(v => !v)}
+                    style={{ fontSize: 12, fontWeight: 700, color: 'var(--ssc-teal)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                  >
+                    {showAllSessions ? 'Collapse ↑' : 'View All →'}
+                  </button>
+                )}
+              </div>
               {(showAllSessions ? sessions : sessions.slice(0, 3)).map((s, i) => (
                 <SessionRow key={`${s.timestamp}-${i}`} session={s} />
               ))}
-
-              {sessions.length > 3 && (
-                <button
-                  onClick={() => setShowAllSessions(v => !v)}
-                  className="w-full flex items-center justify-center gap-2 py-3 mt-1 rounded-2xl active:scale-[0.98] transition-transform"
-                  style={{ background: 'var(--ssc-surface)', border: '1px solid var(--ssc-border-soft)', boxShadow: 'var(--ssc-shadow-card)' }}
-                >
-                  <span className="font-display font-bold text-sm text-[var(--ssc-teal)]">
-                    {showAllSessions ? 'Collapse history' : 'View full history'}
-                  </span>
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="var(--ssc-teal)"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    className={`transition-transform duration-300 ${showAllSessions ? 'rotate-180' : ''}`}
-                  >
-                    <path d="M6 9l6 6 6-6" />
-                  </svg>
-                </button>
-              )}
             </>
           )}
         </div>
 
+        {/* CTA */}
         <div className="mx-4 mt-5">
           <button
             onClick={() => router.push('/dashboard')}
-            className="coins-cta-pulse w-full py-4 text-white rounded-2xl font-display font-bold text-base transition-transform"
+            className="coins-cta-pulse w-full py-4 text-white rounded-2xl font-display font-bold text-base transition-transform flex items-center justify-center gap-2"
             style={{ background: 'linear-gradient(135deg, #FF8A1F, #FF5A00)', boxShadow: '0 4px 14px rgba(255,107,22,0.30)' }}
           >
-            Practice Now →
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+            </svg>
+            Start Practice
           </button>
         </div>
+
       </div>
     </>
   );

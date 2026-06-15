@@ -82,7 +82,8 @@ const historyFeatures = [
   },
   {
     title: 'Coins History',
-    body: 'Track your earned and spent coins',
+    body: 'Track your earned coins',
+    isNew: true,
     route: '/history/coins',
     unlockTitle: 'Unlock Coins History',
     unlockBody: 'Sign in to track your rewards and quiz activity.',
@@ -100,13 +101,14 @@ const historyFeatures = [
   },
   {
     title: 'Streak History',
-    body: 'View your daily streaks and achievements',
+    body: 'Track your learning streak',
+    isNew: true,
     route: '/streak',
     unlockTitle: 'Unlock Streak History',
     unlockBody: 'Sign in to track your daily practice consistency.',
     unlockNote: 'Free • Keeps your streak safe',
-    iconColor: 'var(--ssc-rank)',
-    iconBg: 'rgba(109,93,246,0.12)',
+    iconColor: '#f97316',
+    iconBg: 'rgba(249,115,22,0.12)',
     icon: (
       <>
         <path d="M8 14a4 4 0 1 0 8 0c0-3-4-4-2.5-9C10 7 8 10 8 14z" />
@@ -367,6 +369,9 @@ function HistoryGuestState() {
                   <span className="history-feature-title font-display">{feature.title}</span>
                   <span className="history-feature-body">{feature.body}</span>
                 </div>
+                {feature.isNew && (
+                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--ssc-teal)', background: 'var(--ssc-teal-soft)', border: '1px solid rgba(14,165,164,0.22)', borderRadius: 99, padding: '2px 8px', whiteSpace: 'nowrap', flexShrink: 0 }}>New</span>
+                )}
                 <ChevronSVG />
               </button>
             ))}
@@ -492,6 +497,9 @@ export default function HistoryPage() {
                   <span className="history-feature-title font-display">{feature.title}</span>
                   <span className="history-feature-body">{feature.body}</span>
                 </div>
+                {feature.isNew && (
+                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--ssc-teal)', background: 'var(--ssc-teal-soft)', border: '1px solid rgba(14,165,164,0.22)', borderRadius: 99, padding: '2px 8px', whiteSpace: 'nowrap', flexShrink: 0 }}>New</span>
+                )}
                 <ChevronSVG />
               </button>
             ))}
