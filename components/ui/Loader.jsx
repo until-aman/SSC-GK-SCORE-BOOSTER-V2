@@ -62,7 +62,7 @@ export default function Loader({ label = '', size = 'md', fullScreen = false, ca
     <div className="flex flex-col items-center justify-center gap-3">
       <Spinner size={size} />
       {label && (
-        <p className="font-sans font-medium text-sm text-ssc-text-secondary text-center leading-snug max-w-[220px]">
+        <p className="font-sans font-medium text-xs text-ssc-text-secondary text-center leading-snug max-w-[180px]">
           {label}
         </p>
       )}
